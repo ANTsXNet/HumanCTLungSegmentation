@@ -11,7 +11,7 @@ if( length( args ) != 3 )
   stop( helpMessage )
   } else {
   inputFileName <- args[1]
-  outputFileName <- args[2]
+  outputFilePrefix <- args[2]
   reorientTemplateFileName <- args[3]
   }
 
@@ -44,14 +44,10 @@ if( ! file.exists( weightsFileName ) )
   {
   weightsFileName <- getPretrainedNetwork( "ctHumanLung", weightsFileName )
   }
-load_model_weights_hdf5( unetModel, filepath = weightsFileName )
+unetModel$load_weights( weightsFileName )
 endTime <- Sys.time()
 elapsedTime <- endTime - startTime
 cat( "  (elapsed time:", elapsedTime, "seconds)\n" )
-
-unetModel %>% compile( loss = loss_multilabel_dice_coefficient_error,
-  optimizer = optimizer_adam( lr = 0.0001 ),
-  metrics = c( multilabel_dice_coefficient ) )
 
 # Process input
 
@@ -94,17 +90,37 @@ endTime <- Sys.time()
 elapsedTime <- endTime - startTime
 cat( " (elapsed time:", elapsedTime, "seconds)\n" )
 
-cat( "Renormalize to native space and write to disk." )
+
+cat( "Renormalize to native space" )
 startTime <- Sys.time()
-probabilityImage <- applyAntsrTransformToImage( invertAntsrTransform( xfrm ),
-  probabilityImagesArray[[1]][[2]], image )
-antsImageWrite( probabilityImage, paste0( outputFileName, "Probability1.nii.gz" ) )
-probabilityImage <- applyAntsrTransformToImage( invertAntsrTransform( xfrm ),
-  probabilityImagesArray[[1]][[3]], image )
-antsImageWrite( probabilityImage, paste0( outputFileName, "Probability2.nii.gz" ) )
-probabilityImage <- applyAntsrTransformToImage( invertAntsrTransform( xfrm ),
-  probabilityImagesArray[[1]][[4]], image )
-antsImageWrite( probabilityImage, paste0( outputFileName, "Probability3.nii.gz" ) )
+
+probabilityImages <- list()
+for( i in seq_len( numberOfClassificationLabels - 1 ) )
+  {
+  probabilityImageTmp <- probabilityImagesArray[[1]][[i+1]]
+  probabilityImages[[i]] <- applyAntsrTransformToImage( invertAntsrTransform( xfrm ),
+    probabilityImageTmp, image )
+  }
+
+endTime <- Sys.time()
+elapsedTime <- endTime - startTime
+cat( "  (elapsed time:", elapsedTime, "seconds)\n" )
+
+cat( "Writing", outputFilePrefix )
+startTime <- Sys.time()
+
+probabilityImageFiles <- c()
+for( i in seq_len( numberOfClassificationLabels - 1 ) )
+  {
+  probabilityImageFiles[i] <- paste0( outputFilePrefix, classes[i+1], ".nii.gz" )
+  antsImageWrite( probabilityImages[[i]], probabilityImageFiles[i] )
+  }
+
+# probabilityImagesMatrix <- imagesToMatrix( probabilityImageFiles, mask )
+# segmentationVector <- apply( probabilityImagesMatrix, FUN = which.max, MARGIN = 2 )
+# segmentationImage <- makeImage( mask, segmentationVector )
+# antsImageWrite( segmentationImage, paste0( outputFilePrefix, "Segmentation.nii.gz" ) )
+
 endTime <- Sys.time()
 elapsedTime <- endTime - startTime
 cat( "  (elapsed time:", elapsedTime, "seconds)\n" )
