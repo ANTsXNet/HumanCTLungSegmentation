@@ -15,7 +15,7 @@ if( length( args ) != 3 )
   reorientTemplateFileName <- args[3]
   }
 
-classes <- c( "background", "leftLung", "rightLung", "trachea" )
+classes <- c( "Background", "LeftLung", "RightLung", "Trachea" )
 numberOfClassificationLabels <- length( classes )
 
 imageMods <- c( "CT" )
@@ -95,12 +95,15 @@ cat( "Renormalize to native space" )
 startTime <- Sys.time()
 
 probabilityImages <- list()
+mask <- antsImageClone( image ) * 0
 for( i in seq_len( numberOfClassificationLabels - 1 ) )
   {
   probabilityImageTmp <- probabilityImagesArray[[1]][[i+1]]
   probabilityImages[[i]] <- applyAntsrTransformToImage( invertAntsrTransform( xfrm ),
     probabilityImageTmp, image )
+  mask <- mask + probabilityImages[[i]]
   }
+mask <- thresholdImage( mask, 0.5, 10, 1, 0 )
 
 endTime <- Sys.time()
 elapsedTime <- endTime - startTime
@@ -116,10 +119,10 @@ for( i in seq_len( numberOfClassificationLabels - 1 ) )
   antsImageWrite( probabilityImages[[i]], probabilityImageFiles[i] )
   }
 
-# probabilityImagesMatrix <- imagesToMatrix( probabilityImageFiles, mask )
-# segmentationVector <- apply( probabilityImagesMatrix, FUN = which.max, MARGIN = 2 )
-# segmentationImage <- makeImage( mask, segmentationVector )
-# antsImageWrite( segmentationImage, paste0( outputFilePrefix, "Segmentation.nii.gz" ) )
+probabilityImagesMatrix <- imagesToMatrix( probabilityImageFiles, mask )
+segmentationVector <- apply( probabilityImagesMatrix, FUN = which.max, MARGIN = 2 )
+segmentationImage <- makeImage( mask, segmentationVector )
+antsImageWrite( segmentationImage, paste0( outputFilePrefix, "Segmentation.nii.gz" ) )
 
 endTime <- Sys.time()
 elapsedTime <- endTime - startTime
