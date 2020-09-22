@@ -1,4 +1,9 @@
-# Work in progress
+
+# **** This application has moved to the ANTsPyNet/ANTsRNet repositories.  The following is deprecated. ****
+
+----------------------------------
+
+
 
 # App:  Lung CT segmentation
 
